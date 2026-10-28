@@ -1,8 +1,9 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { DatabaseService } from './database.service';
 import { TransactionPort } from './transaction/transaction.port';
 import { TransactionService } from './transaction/transaction.service';
 
+@Global()
 @Module({
   providers: [
     DatabaseService,

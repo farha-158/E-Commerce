@@ -1,0 +1,152 @@
+<%#
+  Verify-email OTP template (EJS, email-safe: tables + inline CSS, no JS, no icon fonts).
+  Variables:
+    code            string   required  6-digit OTP
+    email           string   required  recipient address
+    appName         string   required  brand name
+    expiresMinutes  number   required
+    year            number   required
+    name            string   optional  user's name (falls back to "there")
+    actionUrl       string   optional  absolute https:// link; shows a button when provided
+-%>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <title>Verify your email</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+    <style>
+      body { margin: 0; padding: 0; }
+      @media only screen and (max-width: 480px) {
+        .container { padding: 28px 20px !important; }
+        .otp-panel { padding: 20px 10px !important; }
+        .digit { width: 34px !important; height: 46px !important; line-height: 46px !important; font-size: 22px !important; }
+      }
+    </style>
+  </head>
+  <body style="margin:0;padding:0;background-color:#f1f5f9;font-family:Inter,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;color:#131b2e;">
+    <!-- Inbox preview text -->
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+      Your verification code is <%= code %>. It expires in <%= expiresMinutes %> minutes.
+    </div>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f1f5f9;">
+      <tr>
+        <td align="center" style="padding:32px 16px;">
+          <table role="presentation" width="580" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:580px;background-color:#ffffff;border-radius:16px;overflow:hidden;">
+            <!-- Brand accent bar -->
+            <tr>
+              <td height="6" style="height:6px;line-height:6px;font-size:0;background-color:#2563eb;background-image:linear-gradient(90deg,#004ac6,#2563eb,#1d4ed8);">&nbsp;</td>
+            </tr>
+
+            <tr>
+              <td class="container" style="padding:40px;">
+                <!-- Header -->
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td width="40" valign="middle">
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                          <td align="center" width="40" height="40" style="width:40px;height:40px;background-color:#004ac6;border-radius:12px;color:#ffffff;font-size:20px;font-weight:700;line-height:40px;">
+                            <%= appName.charAt(0).toUpperCase() %>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                    <td valign="middle" style="padding-left:12px;">
+                      <div style="font-size:20px;font-weight:600;line-height:22px;color:#131b2e;letter-spacing:-0.01em;"><%= appName %></div>
+                      <div style="font-size:11px;font-weight:600;line-height:14px;color:#434655;letter-spacing:0.05em;text-transform:uppercase;padding-top:4px;">Security &amp; Identity Service</div>
+                    </td>
+                  </tr>
+                </table>
+
+                <!-- Headline -->
+                <h1 style="margin:32px 0 0;font-size:32px;line-height:40px;font-weight:600;letter-spacing:-0.015em;color:#131b2e;">Confirm your identity</h1>
+                <p style="margin:6px 0 0;font-size:14px;line-height:20px;color:#434655;">Here is your one-time verification passcode</p>
+
+                <!-- Greeting -->
+                <p style="margin:24px 0 0;font-size:16px;line-height:24px;color:#131b2e;">
+                  Hi <strong style="font-weight:600;"><%= locals.name || 'there' %></strong>,
+                </p>
+                <p style="margin:12px 0 0;font-size:14px;line-height:22px;color:#434655;">
+                  Use the single-use code below to verify the email address for your <%= appName %> account
+                  (<strong style="color:#131b2e;font-weight:600;"><%= email %></strong>).
+                </p>
+
+                <!-- OTP panel -->
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:28px;">
+                  <tr>
+                    <td class="otp-panel" align="center" style="background-color:#eff6ff;border-radius:16px;padding:28px;">
+                      <div style="font-size:11px;line-height:14px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#004ac6;">One-Time Passcode (OTP)</div>
+
+                      <table role="presentation" align="center" cellpadding="0" cellspacing="6" border="0" style="margin:16px auto 8px;">
+                        <tr>
+                          <% String(code).split('').forEach(function (d, i) { %>
+                            <% if (i === 3) { %>
+                              <td align="center" style="color:#004ac6;font-size:24px;font-weight:700;padding:0 2px;">-</td>
+                            <% } %>
+                            <td class="digit" align="center" style="width:44px;height:56px;background-color:#ffffff;border-radius:12px;color:#004ac6;font-size:28px;line-height:56px;font-weight:700;font-family:'SFMono-Regular',Menlo,Consolas,'Courier New',monospace;"><%= d %></td>
+                          <% }); %>
+                        </tr>
+                      </table>
+
+                      <!-- Plain copy of the code: easy to select and detected by phone autofill -->
+                      <div style="font-size:12px;line-height:16px;color:#434655;">
+                        Your code: <strong style="color:#131b2e;letter-spacing:0.08em;"><%= code %></strong>
+                      </div>
+
+                      <div style="margin-top:16px;font-size:12px;line-height:16px;color:#434655;">
+                        &#9201;&nbsp;This code expires in <strong style="color:#131b2e;font-weight:600;"><%= expiresMinutes %> minutes</strong>. Single-use only.
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+
+                <% if (locals.actionUrl) { %>
+                <!-- Optional action button -->
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;">
+                  <tr>
+                    <td align="center">
+                      <a href="<%= actionUrl %>" style="display:block;background-color:#004ac6;color:#ffffff;text-decoration:none;font-size:18px;line-height:24px;font-weight:600;padding:14px 24px;border-radius:8px;text-align:center;">Verify now &rarr;</a>
+                    </td>
+                  </tr>
+                </table>
+                <% } %>
+
+                <!-- Security notice -->
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:28px;">
+                  <tr>
+                    <td style="background-color:#fefce8;border-radius:12px;padding:18px;">
+                      <div style="font-size:18px;line-height:24px;font-weight:600;color:#713f12;">&#9888;&#65039; Didn't request this verification?</div>
+                      <p style="margin:8px 0 0;font-size:12px;line-height:18px;color:#854d0e;">
+                        If you didn't create an account, someone may have entered your email address by mistake.
+                        You can safely ignore this email.
+                      </p>
+                      <p style="margin:8px 0 0;font-size:11px;line-height:16px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#a16207;">
+                        <%= appName %> will never ask you for this code or your password.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+
+                <!-- Footer -->
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:32px;">
+                  <tr>
+                    <td align="center" style="padding-top:24px;">
+                      <p style="margin:0;font-size:11px;line-height:16px;color:#737686;">
+                        This is an automated message sent to <%= email %>. Please do not reply to this email.
+                      </p>
+                      <p style="margin:12px 0 0;font-size:12px;line-height:16px;color:#737686;">&copy; <%= year %> <%= appName %></p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
