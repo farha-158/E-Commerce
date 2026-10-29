@@ -119,7 +119,17 @@ export class AuthService {
     });
 
     const tokens = await this.issueTokens(user.id, user.role);
-    return { message: 'Email verified', ...tokens };
+    return {
+      message: 'Email verified',
+      ...tokens,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+      },
+    };
   }
 
   /**
@@ -161,8 +171,17 @@ export class AuthService {
 
     if (!user.isVerified)
       throw new ForbiddenException('Please verify your email first');
-
-    return this.issueTokens(user.id, user.role);
+    const tokens =await this.issueTokens(user.id, user.role)
+    return {
+      ...tokens,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+      },
+    }; ;
   }
 
   /**

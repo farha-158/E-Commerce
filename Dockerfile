@@ -9,6 +9,8 @@ RUN npm ci
 
 COPY . .
 
+RUN npx prisma generate --config prisma7.config.ts
+
 RUN npm run build
 
 EXPOSE 3000
