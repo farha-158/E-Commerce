@@ -4,6 +4,7 @@ import { UserRole } from '../../../generated/prisma/enums';
 import { JwtAccessGuard } from '../../shared/guards/jwt.guard';
 import { ProductsService } from './product.service';
 import {
+  ApiExtraModels,
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
@@ -45,6 +46,7 @@ export class ProductsAdminController {
       'Create a product with its details, variants, and up to 12 images.',
   })
   @ApiConsumes('multipart/form-data')
+  @ApiExtraModels(CreateProductDto)
   @ApiBody({
     description: 'Product information and images',
     schema: {

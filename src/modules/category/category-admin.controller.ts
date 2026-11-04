@@ -7,6 +7,7 @@ import {
   Post,
   Put,
   Query,
+  UploadedFile,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -23,6 +24,9 @@ import {
   ApiParam,
   ApiQuery,
   ApiBody,
+  ApiConsumes,
+  ApiExtraModels,
+  getSchemaPath,
 } from '@nestjs/swagger';
 import { CategoryService } from './category.service';
 import { GetCategoriesQueryDto } from './dto/get-categories-query.dto';
@@ -146,13 +150,39 @@ export class CategoryController {
       },
     },
   })
+  @ApiConsumes('multipart/form-data')
+  @ApiExtraModels(CreateCategoryDto)
+  @ApiBody({
+    description: 'Category information and images',
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(CreateCategoryDto) },
+        {
+          type: 'object',
+          properties: {
+            images: {
+              type: 'array',
+              items: {
+                type: 'string',
+                format: 'binary',
+              },
+              maxItems: 1,
+            },
+          },
+        },
+      ],
+    },
+  })
   @ApiBadRequestResponse({ description: 'Invalid category data.' })
   @ApiConflictResponse({ description: 'Category slug already exists.' })
   @ApiNotFoundResponse({ description: 'Parent category not found.' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized.' })
   @ApiForbiddenResponse({ description: 'Admin access required.' })
-  async createCategory(@Body() dto: CreateCategoryDto) {
-    return this.categoriesService.createCategory(dto);
+  async createCategory(
+    @Body() dto: CreateCategoryDto,
+    @UploadedFile() image: Express.Multer.File,
+  ) {
+    return this.categoriesService.createCategory(dto, image);
   }
 
   @Put(':id')
@@ -181,6 +211,29 @@ export class CategoryController {
       },
     },
   })
+  @ApiConsumes('multipart/form-data')
+  @ApiExtraModels(CreateCategoryDto)
+  @ApiBody({
+    description: 'Category information and images',
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(CreateCategoryDto) },
+        {
+          type: 'object',
+          properties: {
+            images: {
+              type: 'array',
+              items: {
+                type: 'string',
+                format: 'binary',
+              },
+              maxItems: 1,
+            },
+          },
+        },
+      ],
+    },
+  })
   @ApiBadRequestResponse({
     description: 'Invalid category data or circular hierarchy.',
   })
@@ -193,8 +246,9 @@ export class CategoryController {
   async updateCategory(
     @Param('id') id: string,
     @Body() dto: CreateCategoryDto,
+    @UploadedFile() image?: Express.Multer.File,
   ) {
-    return this.categoriesService.updateCategory(id, dto);
+    return this.categoriesService.updateCategory(id, dto, image);
   }
 
   @Delete(':id')

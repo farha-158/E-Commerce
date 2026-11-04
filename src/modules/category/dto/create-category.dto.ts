@@ -53,52 +53,6 @@ export class CreateCategoryDto {
   description?: string;
 
   @ApiPropertyOptional({
-    description: 'Category image URL',
-    example: 'https://example.com/images/smart-wearables.jpg',
-  })
-  @IsOptional()
-  @IsUrl()
-  imageUrl?: string;
-
-  @ApiPropertyOptional({
-    description: 'Original image file name',
-    example: 'smart-wearables.jpg',
-  })
-  @IsOptional()
-  @IsString()
-  imageFileName?: string;
-
-  @ApiPropertyOptional({
-    description: 'Image width in pixels',
-    example: 1200,
-    minimum: 1,
-  })
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  imageWidth?: number;
-
-  @ApiPropertyOptional({
-    description: 'Image height in pixels',
-    example: 800,
-    minimum: 1,
-  })
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  imageHeight?: number;
-
-  @ApiPropertyOptional({
-    description: 'Image size in bytes',
-    example: 245760,
-    minimum: 1,
-  })
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  imageSizeBytes?: number;
-
-  @ApiPropertyOptional({
     description: 'Category publication status',
     enum: ['active', 'draft', 'scheduled'],
     default: 'draft',

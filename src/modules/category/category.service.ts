@@ -260,7 +260,7 @@ export class CategoryService {
     };
   }
 
-  async createCategory(dto: CreateCategoryDto) {
+  async createCategory(dto: CreateCategoryDto, image: Express.Multer.File) {
     if (dto.parentId) {
       const parent = await this.categoriesRepo.findCategoryById(dto.parentId);
 
@@ -280,11 +280,11 @@ export class CategoryService {
         slug: dto.slug,
         parent: dto.parentId ? { connect: { id: dto.parentId } } : undefined,
         description: dto.description,
-        imageUrl: dto.imageUrl,
-        imageFileName: dto.imageFileName,
-        imageWidth: dto.imageWidth,
-        imageHeight: dto.imageHeight,
-        imageSizeBytes: dto.imageSizeBytes,
+        imageUrl: image ? image.path : null,
+        imageFileName: image ? image.filename : null,
+        imageWidth: image ? image.size : null,
+        imageHeight: image ? image.size : null,
+        imageSizeBytes: image ? image.size : null,
         status,
       });
     } catch (error) {
@@ -335,7 +335,11 @@ export class CategoryService {
     };
   }
 
-  async updateCategory(id: string, dto: CreateCategoryDto) {
+  async updateCategory(
+    id: string,
+    dto: CreateCategoryDto,
+    image?: Express.Multer.File,
+  ) {
     const existingCategory = await this.categoriesRepo.findCategoryById(id);
 
     if (!existingCategory) {
@@ -390,11 +394,11 @@ export class CategoryService {
       slug: dto.slug,
       parent: dto.parentId ? { connect: { id: dto.parentId } } : undefined,
       description: dto.description,
-      imageUrl: dto.imageUrl,
-      imageFileName: dto.imageFileName,
-      imageWidth: dto.imageWidth,
-      imageHeight: dto.imageHeight,
-      imageSizeBytes: dto.imageSizeBytes,
+      imageUrl: image ? image.path : existingCategory.imageUrl,
+      imageFileName: image ? image.filename : existingCategory.imageFileName,
+      imageWidth: image ? image.size : existingCategory.imageWidth,
+      imageHeight: image ? image.size : existingCategory.imageHeight,
+      imageSizeBytes: image ? image.size : existingCategory.imageSizeBytes,
       status,
     });
 
