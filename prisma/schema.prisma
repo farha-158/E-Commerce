@@ -81,3 +81,227 @@ model EmailOutbox {
   @@index([status, nextAttemptAt]) 
   @@map("email_outbox")
 }
+
+// ───────────── Enums ─────────────
+
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  UNPUBLISHED
+  ARCHIVED
+}
+
+enum OutOfStockPolicy {
+  STOP_SELLING
+  ALLOW_BACKORDER
+}
+
+enum WeightUnit {
+  G
+  KG
+  LB
+  OZ
+}
+
+enum DimensionUnit {
+  CM
+  MM
+  IN
+}
+
+enum CategoryStatus {
+  ACTIVE
+  DRAFT
+  SCHEDULED
+  ARCHIVED
+}
+
+model Category {
+  id          String  @id @default(cuid())
+  name        String
+  slug        String  @unique
+  description String? @db.Text
+
+  parentId String?
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children Category[] @relation("CategoryTree")
+
+  imageUrl       String?
+  imageFileName  String?
+  imageWidth     Int?
+  imageHeight    Int?
+  imageSizeBytes Int?
+
+  status      CategoryStatus @default(DRAFT)
+  scheduledAt DateTime?
+
+  isFeatured   Boolean @default(false)
+  displayOrder Int     @default(0)
+
+  products Product[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([parentId])
+  @@index([status])
+  @@index([displayOrder])
+  @@index([deletedAt])
+  @@index([isFeatured])
+  @@index([parentId, displayOrder])
+}
+
+model Brand {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  products Product[]
+}
+
+model Collection {
+  id       String              @id @default(cuid())
+  name     String              @unique
+  slug     String              @unique
+  products ProductCollection[]
+}
+
+model TaxProfile {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  rate     Decimal   @db.Decimal(5, 2)
+  products Product[]
+}
+
+model ShippingProfile {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  products Product[]
+}
+
+model Product {
+  id              String  @id @default(cuid())
+  title           String
+  slug            String  @unique
+  subtitle        String?
+  descriptionHtml String? @db.Text
+
+  // Pricing
+  basePrice    Decimal     @db.Decimal(10, 2)
+  comparePrice Decimal?    @db.Decimal(10, 2)
+  costPrice    Decimal?    @db.Decimal(10, 2)
+  chargeTax    Boolean     @default(true)
+  taxProfileId String?
+  taxProfile   TaxProfile? @relation(fields: [taxProfileId], references: [id])
+
+  // Inventory
+  sku               String           @unique
+  barcode           String?          @unique
+  stockCount        Int              @default(0)
+  lowStockThreshold Int              @default(0)
+  outOfStockPolicy  OutOfStockPolicy @default(STOP_SELLING)
+  hasVariants       Boolean          @default(false)
+
+  // Shipping
+  weight            Decimal?         @db.Decimal(10, 2)
+  weightUnit        WeightUnit?
+  length            Decimal?         @db.Decimal(10, 2)
+  width             Decimal?         @db.Decimal(10, 2)
+  height            Decimal?         @db.Decimal(10, 2)
+  dimensionUnit     DimensionUnit?
+  hsCode            String?
+  shippingProfileId String?
+  shippingProfile   ShippingProfile? @relation(fields: [shippingProfileId], references: [id])
+
+  // Display / Marketing
+  status             ProductStatus @default(DRAFT)
+  cornerRibbon       String?
+  has3dAsset         Boolean       @default(false)
+  allowPhotoReviews  Boolean       @default(true)
+  featureInSpotlight Boolean       @default(false)
+
+  // Simple lists (no separate table needed)
+  tags       String[]
+  highlights String[]
+
+  // Relations
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+  brandId    String?
+  brand      Brand?   @relation(fields: [brandId], references: [id])
+
+  media        ProductMedia[]
+  colorOptions ProductColorOption[]
+  careOptions  ProductCareOption[]
+  variants     ProductVariant[]
+  collections  ProductCollection[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([categoryId])
+  @@index([brandId])
+  @@index([status])
+  @@index([tags], type: Gin)
+}
+
+model ProductMedia {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  alt       String?
+  isPrimary Boolean @default(false)
+  position  Int     @default(0)
+
+  @@index([productId])
+}
+
+model ProductColorOption {
+  id        String           @id @default(cuid())
+  productId String
+  product   Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  label     String
+  colorHex  String
+  variants  ProductVariant[]
+
+  @@unique([productId, label])
+}
+
+model ProductCareOption {
+  id         String           @id @default(cuid())
+  productId  String
+  product    Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  label      String
+  extraPrice Decimal          @default(0) @db.Decimal(10, 2)
+  variants   ProductVariant[]
+
+  @@unique([productId, label])
+}
+
+model ProductVariant {
+  id            String              @id @default(cuid())
+  productId     String
+  product       Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  title         String
+  sku           String              @unique
+  price         Decimal             @db.Decimal(10, 2)
+  stock         Int                 @default(0)
+  isActive      Boolean             @default(true)
+
+  colorOptionId String?
+  colorOption   ProductColorOption? @relation(fields: [colorOptionId], references: [id], onDelete: SetNull)
+  careOptionId  String?
+  careOption    ProductCareOption?  @relation(fields: [careOptionId], references: [id], onDelete: SetNull)
+
+  @@index([productId])
+}
+
+model ProductCollection {
+  productId    String
+  collectionId String
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@id([productId, collectionId])
+}

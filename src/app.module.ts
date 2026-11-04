@@ -7,6 +7,8 @@ import { UserModule } from './modules/user/user.module';
 import { OutboxModule } from './modules/outbox/outbox.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { ProductModule } from './modules/product/product.module';
+import { CategoryModule } from './modules/category/category.module';
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { APP_GUARD } from '@nestjs/core';
     AuthModule,
     UserModule,
     OutboxModule,
+    ProductModule,
+    CategoryModule
   ],
   providers: [
     {
