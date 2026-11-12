@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../shared/db/database.service';
-import { Prisma } from '../../../generated/prisma/browser';
+import { Prisma, ProductStatus } from '../../../generated/prisma/browser';
+import { TransactionClient } from '../../../generated/prisma/internal/prismaNamespaceBrowser';
 
 const FULL_INCLUDE = {
   media: { orderBy: { position: 'asc' } },
@@ -8,7 +9,7 @@ const FULL_INCLUDE = {
   careOptions: true,
   variants: true,
   collections: {
-    include: { collection: { select: { id: true, name: true, slug: true } } },
+    include: { collection: { select: { id: true, title: true, slug: true } } },
   },
   category: { select: { id: true, name: true, slug: true } },
   brand: true,
@@ -155,4 +156,37 @@ export class ProductsRepository {
       data: { deletedAt: new Date() },
     });
   }
+
+  bulkUpdateStatus(
+    productIds: string[],
+    status: ProductStatus,
+    tx?: TransactionClient,
+  ) {
+    const client = tx ?? this.prisma;
+    return client.product.updateMany({
+      where: {
+        id: {
+          in: productIds,
+        },
+      },
+      data: {
+        status,
+      },
+    });
+  }
+
+  findManyByIds(productIds: string[]) {
+    return this.prisma.product.findMany({
+      where: {
+        id: {
+          in: productIds,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+  }
+
+  
 }

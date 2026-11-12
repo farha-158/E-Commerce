@@ -1,10 +1,17 @@
 import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { extname, join } from 'path';
 import { randomUUID } from 'crypto';
+import { mkdirSync } from 'fs';
 
-export const multerOptions = {
+export const multerOptions = (folder: string) => ({
   storage: diskStorage({
-    destination: './uploads/products',
+    destination: (req, file, callback) => {
+      const uploadPath = join('./uploads', folder);
+
+      mkdirSync(uploadPath, { recursive: true });
+
+      callback(null, uploadPath);
+    },
 
     filename: (req, file, callback) => {
       const uniqueName = `${randomUUID()}${extname(file.originalname).toLowerCase()}`;
@@ -29,4 +36,4 @@ export const multerOptions = {
     fileSize: 10 * 1024 * 1024,
     files: 12,
   },
-};
+});

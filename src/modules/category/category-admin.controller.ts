@@ -9,6 +9,7 @@ import {
   Query,
   UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -35,11 +36,15 @@ import { CheckCategorySlugDto } from './dto/check-category-slug.dto';
 import { Roles } from '../../shared/decorators/user-role.decorator';
 import { UserRole } from '../../../generated/prisma/enums';
 import { JwtAccessGuard } from '../../shared/guards/jwt.guard';
+import { multerOptions } from '../../shared/config/multer.config';
+import { RolesGuard } from '../../shared/guards/role.guard';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { UpdateCategoryDto } from './dto/update-category.dto';
 
 @ApiTags('Admin - Categories')
-@ApiBearerAuth()
+@ApiBearerAuth("access-token")
 @Roles(UserRole.ADMIN)
-@UseGuards(JwtAccessGuard)
+@UseGuards(JwtAccessGuard, RolesGuard)
 @Controller('admin/categories')
 export class CategoryController {
   constructor(private readonly categoriesService: CategoryService) {}
@@ -160,7 +165,7 @@ export class CategoryController {
         {
           type: 'object',
           properties: {
-            images: {
+            image: {
               type: 'array',
               items: {
                 type: 'string',
@@ -178,6 +183,7 @@ export class CategoryController {
   @ApiNotFoundResponse({ description: 'Parent category not found.' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized.' })
   @ApiForbiddenResponse({ description: 'Admin access required.' })
+  @UseInterceptors(FileInterceptor('image', multerOptions("categories")))
   async createCategory(
     @Body() dto: CreateCategoryDto,
     @UploadedFile() image: Express.Multer.File,
@@ -195,7 +201,6 @@ export class CategoryController {
     type: String,
     example: 'cat-smart-wearables',
   })
-  @ApiBody({ type: CreateCategoryDto })
   @ApiOkResponse({
     description: 'Category updated successfully.',
     schema: {
@@ -212,16 +217,16 @@ export class CategoryController {
     },
   })
   @ApiConsumes('multipart/form-data')
-  @ApiExtraModels(CreateCategoryDto)
+  @ApiExtraModels(UpdateCategoryDto)
   @ApiBody({
     description: 'Category information and images',
     schema: {
       allOf: [
-        { $ref: getSchemaPath(CreateCategoryDto) },
+        { $ref: getSchemaPath(UpdateCategoryDto) },
         {
           type: 'object',
           properties: {
-            images: {
+            image: {
               type: 'array',
               items: {
                 type: 'string',
@@ -243,9 +248,10 @@ export class CategoryController {
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized.' })
   @ApiForbiddenResponse({ description: 'Admin access required.' })
+  @UseInterceptors(FileInterceptor('image', multerOptions("categories")))
   async updateCategory(
     @Param('id') id: string,
-    @Body() dto: CreateCategoryDto,
+    @Body() dto: UpdateCategoryDto,
     @UploadedFile() image?: Express.Multer.File,
   ) {
     return this.categoriesService.updateCategory(id, dto, image);

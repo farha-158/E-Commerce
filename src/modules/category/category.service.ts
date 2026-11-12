@@ -7,6 +7,8 @@ import {
 import { CategoriesRepository } from './category.repository';
 import { GetCategoriesQueryDto } from './dto/get-categories-query.dto';
 import { CreateCategoryDto } from './dto/create-category.dto';
+import { UpdateCategoryDto } from './dto/update-category.dto';
+import { DeleteFile } from '../../shared/utils/delete-file.util';
 
 @Injectable()
 export class CategoryService {
@@ -40,6 +42,8 @@ export class CategoryService {
   async getCategories(query: GetCategoriesQueryDto) {
     const categories = await this.categoriesRepo.findAllCategories();
 
+    const baseUrl = process.env.APP_URL;
+
     const categoryMap = new Map(
       categories.map((category) => [category.id, category]),
     );
@@ -63,25 +67,6 @@ export class CategoryService {
 
       return matchesStatus && matchesLevel && matchesSearch;
     });
-
-    const getFullPath = (
-      category: (typeof categories)[number],
-      visited = new Set<string>(),
-    ): string => {
-      if (visited.has(category.id)) {
-        return `/${category.slug}`;
-      }
-
-      visited.add(category.id);
-
-      const parent = category.parentId
-        ? categoryMap.get(category.parentId)
-        : undefined;
-
-      return parent
-        ? `${getFullPath(parent, visited)}/${category.slug}`
-        : `/${category.slug}`;
-    };
 
     const siblingsMap = new Map<string | null, typeof categories>();
 
@@ -120,14 +105,14 @@ export class CategoryService {
         category.imageWidth !== null &&
         category.imageHeight !== null &&
         category.imageSizeBytes !== null
-          ? `${category.imageWidth} x ${category.imageHeight}px (${Math.round(category.imageSizeBytes / 1024)} KB)`
+          ? `${category.imageSizeBytes} px (${Math.round(category.imageSizeBytes / 1024)} KB)`
           : null;
 
       return {
         id: category.id,
         name: category.name,
         slug: category.slug,
-        fullPath: getFullPath(category),
+        fullPath: `${baseUrl}/${category.imageUrl?.replace(/\\/g, '/')}`,
         description: category.description,
 
         level: category.parentId ? 'subcategory' : 'root',
@@ -212,43 +197,20 @@ export class CategoryService {
       throw new NotFoundException('Category not found');
     }
 
-    const hierarchy = await this.categoriesRepo.findCategoriesHierarchy();
+    const baseUrl = process.env.APP_URL;
 
-    const categoriesMap = new Map(hierarchy.map((item) => [item.id, item]));
-
-    const path: string[] = [];
-    let current = categoriesMap.get(category.id);
-
-    const visited = new Set<string>();
-
-    while (current) {
-      if (visited.has(current.id)) {
-        break;
-      }
-
-      visited.add(current.id);
-      path.unshift(current.slug);
-
-      current = current.parentId
-        ? categoriesMap.get(current.parentId)
-        : undefined;
-    }
-
-    const imageSizeText =
-      category.imageWidth !== null &&
-      category.imageHeight !== null &&
-      category.imageSizeBytes !== null
-        ? `${category.imageWidth} x ${category.imageHeight}px (${Math.round(
-            category.imageSizeBytes / 1024,
-          )} KB)`
-        : null;
+    const imageSizeText = category.imageSizeBytes
+      ? `${category.imageSizeBytes}px (${Math.round(
+          category.imageSizeBytes / 1024,
+        )} KB)`
+      : null;
 
     return {
       data: {
         id: category.id,
         name: category.name,
         slug: category.slug,
-        fullPath: `/${path.join('/')}`,
+        fullPath: `${baseUrl}/${category.imageUrl?.replace(/\\/g, '/')}`,
         description: category.description,
         level: category.parentId ? 'subcategory' : 'root',
         parentId: category.parentId,
@@ -282,8 +244,6 @@ export class CategoryService {
         description: dto.description,
         imageUrl: image ? image.path : null,
         imageFileName: image ? image.filename : null,
-        imageWidth: image ? image.size : null,
-        imageHeight: image ? image.size : null,
         imageSizeBytes: image ? image.size : null,
         status,
       });
@@ -300,35 +260,12 @@ export class CategoryService {
       throw error;
     }
 
-    const hierarchy = await this.categoriesRepo.findCategoriesHierarchy();
-
-    const categoriesMap = new Map(hierarchy.map((item) => [item.id, item]));
-
-    const path = [category.slug];
-    let current = category.parentId
-      ? categoriesMap.get(category.parentId)
-      : undefined;
-
-    const visited = new Set<string>();
-
-    while (current) {
-      if (visited.has(current.id)) break;
-
-      visited.add(current.id);
-      path.unshift(current.slug);
-
-      current = current.parentId
-        ? categoriesMap.get(current.parentId)
-        : undefined;
-    }
-
     return {
       message: `Category '${category.name}' created successfully.`,
       data: {
         id: category.id,
         name: category.name,
         slug: category.slug,
-        fullPath: `/${path.join('/')}`,
         level: category.parentId ? 'subcategory' : 'root',
         createdAt: category.createdAt,
       },
@@ -337,7 +274,7 @@ export class CategoryService {
 
   async updateCategory(
     id: string,
-    dto: CreateCategoryDto,
+    dto: UpdateCategoryDto,
     image?: Express.Multer.File,
   ) {
     const existingCategory = await this.categoriesRepo.findCategoryById(id);
@@ -345,14 +282,19 @@ export class CategoryService {
     if (!existingCategory) {
       throw new NotFoundException('Category not found');
     }
+    const baseUrl = process.env.APP_URL;
 
-    const slugCategory = await this.categoriesRepo.findCategoryBySlug(dto.slug);
+    if (dto.slug && dto.slug !== existingCategory.slug) {
+      const slugCategory = await this.categoriesRepo.findCategoryBySlug(
+        dto.slug,
+      );
 
-    if (slugCategory && slugCategory.id !== id) {
-      throw new ConflictException('A category with this slug already exists');
+      if (slugCategory && slugCategory.id !== id) {
+        throw new ConflictException('A category with this slug already exists');
+      }
     }
 
-    if (dto.parentId) {
+    if (dto.parentId !== undefined && dto.parentId !== null) {
       if (dto.parentId === id) {
         throw new BadRequestException('A category cannot be its own parent');
       }
@@ -368,12 +310,15 @@ export class CategoryService {
       const descendants = new Set<string>();
       const queue = [id];
 
-      while (queue.length) {
+      while (queue.length > 0) {
         const currentId = queue.shift()!;
+
+        if (descendants.has(currentId)) continue;
+
         descendants.add(currentId);
 
         for (const item of hierarchy) {
-          if (item.parentId === currentId && !descendants.has(item.id)) {
+          if (item.parentId === currentId) {
             queue.push(item.id);
           }
         }
@@ -386,25 +331,45 @@ export class CategoryService {
       }
     }
 
-    const status = (dto.status ?? 'draft').toUpperCase() as
-      'ACTIVE' | 'DRAFT' | 'SCHEDULED';
+    const updateData = {
+      ...(dto.name !== undefined && { name: dto.name }),
+      ...(dto.slug !== undefined && { slug: dto.slug }),
+      ...(dto.description !== undefined && {
+        description: dto.description,
+      }),
 
-    const category = await this.categoriesRepo.updateCategory(id, {
-      name: dto.name,
-      slug: dto.slug,
-      parent: dto.parentId ? { connect: { id: dto.parentId } } : undefined,
-      description: dto.description,
-      imageUrl: image ? image.path : existingCategory.imageUrl,
-      imageFileName: image ? image.filename : existingCategory.imageFileName,
-      imageWidth: image ? image.size : existingCategory.imageWidth,
-      imageHeight: image ? image.size : existingCategory.imageHeight,
-      imageSizeBytes: image ? image.size : existingCategory.imageSizeBytes,
-      status,
-    });
+      ...(dto.parentId !== undefined && {
+        parent:
+          dto.parentId === null
+            ? { disconnect: true }
+            : { connect: { id: dto.parentId } },
+      }),
+
+      ...(dto.status !== undefined && {
+        status: dto.status.toUpperCase() as 'ACTIVE' | 'DRAFT' | 'SCHEDULED',
+      }),
+
+      ...(image && {
+        imageUrl: image.path,
+        imageFileName: image.filename,
+        imageSizeBytes: image.size,
+      }),
+    };
+
+    const category = await this.categoriesRepo.updateCategory(id, updateData);
+
+    if (image && existingCategory.imageFileName) {
+      await DeleteFile(existingCategory.imageFileName, 'categories');
+    }
 
     return {
       message: 'Category updated successfully.',
-      data: category,
+      data: {
+        category: {
+          ...category,
+          fullPath: `${baseUrl}/${category.imageUrl?.replace(/\\/g, '/')}`,
+        },
+      },
     };
   }
 

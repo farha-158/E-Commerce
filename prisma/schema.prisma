@@ -116,6 +116,11 @@ enum CategoryStatus {
   ARCHIVED
 }
 
+enum BrandStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
 model Category {
   id          String  @id @default(cuid())
   name        String
@@ -153,16 +158,68 @@ model Category {
 }
 
 model Brand {
-  id       String    @id @default(cuid())
-  name     String    @unique
-  products Product[]
+  id           String      @id @default(uuid())
+  name         String      @db.VarChar(100)
+  slug         String      @unique
+  logoUrl      String?
+  websiteUrl   String?
+  country      String?
+  description  String?     @db.VarChar(1000)
+  status       BrandStatus @default(ACTIVE)
+  isInternal   Boolean     @default(false)
+  contactEmail String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  products     Product[]
+
+  @@map("brands")
+}
+
+enum CollectionDisplayLocation {
+  HOME_GRID
+  STOREFRONT_CATALOG
+  BANNER
+  SIDEBAR
+}
+
+enum CollectionStatus {
+  ACTIVE
+  SCHEDULED
+  DRAFT
+  ARCHIVED
 }
 
 model Collection {
-  id       String              @id @default(cuid())
-  name     String              @unique
-  slug     String              @unique
-  products ProductCollection[]
+  id              String                    @id @default(uuid())
+  title           String                    @db.VarChar(120)
+  slug            String                    @unique
+  imageUrl        String?
+  description     String?                   @db.VarChar(2000)
+  displayLocation CollectionDisplayLocation @default(STOREFRONT_CATALOG)
+  status          CollectionStatus          @default(ACTIVE)
+  isFeatured      Boolean                   @default(false)
+  badgeText       String?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+
+  products        CollectionProduct[]
+
+  @@map("collections")
+}
+
+model CollectionProduct {
+  collectionId String
+  productId    String
+  position     Int      @default(0)
+  addedAt      DateTime @default(now())
+
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([collectionId, productId])
+  @@index([productId])
+  @@map("collection_products")
 }
 
 model TaxProfile {
@@ -222,6 +279,7 @@ model Product {
   // Simple lists (no separate table needed)
   tags       String[]
   highlights String[]
+  collections CollectionProduct[]
 
   // Relations
   categoryId String
@@ -233,7 +291,6 @@ model Product {
   colorOptions ProductColorOption[]
   careOptions  ProductCareOption[]
   variants     ProductVariant[]
-  collections  ProductCollection[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -295,13 +352,4 @@ model ProductVariant {
   careOption    ProductCareOption?  @relation(fields: [careOptionId], references: [id], onDelete: SetNull)
 
   @@index([productId])
-}
-
-model ProductCollection {
-  productId    String
-  collectionId String
-  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
-  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
-
-  @@id([productId, collectionId])
 }

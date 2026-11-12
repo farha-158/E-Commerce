@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -7,7 +8,7 @@ import { CreateProductDto } from './dto/create.dto';
 import { ConfigService } from '@nestjs/config';
 import { ProductQueryDto } from './dto/product-query.dto';
 import { DatabaseService } from '../../shared/db/database.service';
-import { Prisma } from '../../../generated/prisma/browser';
+import { Prisma, ProductStatus } from '../../../generated/prisma/browser';
 
 @Injectable()
 export class ProductsService {
@@ -20,7 +21,7 @@ export class ProductsService {
   // ───── Create ─────
   async create(dto: CreateProductDto, files: Express.Multer.File[]) {
     const imagesData = (files ?? []).map((file, index) => ({
-      url: `/uploads/products/${file.filename}`,
+      url: file.path,
       position: index,
       isPrimary: index === 0,
     }));
@@ -263,7 +264,7 @@ export class ProductsService {
         marginPercent,
         status: product.status.toLowerCase(),
         updatedAt: product.updatedAt,
-        imageUrl: primaryImage?.url ?? null,
+        imageUrl: `${this.config.get('APP_URL')}${primaryImage?.url ?? null}`,
       };
     });
 
@@ -299,6 +300,23 @@ export class ProductsService {
       data: {
         available: !product,
         slug,
+      },
+    };
+  }
+
+  async bulkUpdateStatus(productIds: string[], status: ProductStatus) {
+    const existingProducts = await this.productRepo.findManyByIds(productIds);
+
+    if (existingProducts.length !== productIds.length) {
+      throw new NotFoundException('Some products were not found.');
+    }
+
+    const result = await this.productRepo.bulkUpdateStatus(productIds, status);
+
+    return {
+      message: `Updated status for ${result.count} products.`,
+      data: {
+        affectedCount: result.count,
       },
     };
   }

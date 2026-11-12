@@ -190,6 +190,7 @@ export class CategoriesRepository {
       select: {
         id: true,
         updatedAt: true,
+        imageUrl: true,
       },
     });
   }

@@ -22,10 +22,43 @@ import {
   WeightUnit,
 } from '../../../../generated/prisma/enums';
 
+// ── Transformers ──
+
 const toUpper = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim().toUpperCase() : value;
 
+const toNumber = ({ value }: { value: unknown }) => {
+  if (value === '' || value === null || value === undefined) {
+    return undefined;
+  }
+
+  return Number(value);
+};
+
+const toBoolean = ({ value }: { value: unknown }) => {
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+
+  return value;
+};
+
+const parseJson = ({ value }: { value: unknown }) => {
+  if (typeof value !== 'string') return value;
+
+  const trimmed = value.trim();
+
+  if (!trimmed) return value;
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return value;
+  }
+};
+
 const price = { maxDecimalPlaces: 2 };
+
+// ── Color Option ──
 
 export class ColorOptionDto {
   @ApiProperty({ example: 'Midnight Black', maxLength: 60 })
@@ -38,11 +71,15 @@ export class ColorOptionDto {
     example: '#000000',
     description: 'HEX color code',
   })
+  @IsString()
+  @IsNotEmpty()
   @Matches(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, {
     message: 'colorHex must be a valid hex color',
   })
   colorHex: string;
 }
+
+// ── Care Option ──
 
 export class CareOptionDto {
   @ApiProperty({ example: 'Premium Care' })
@@ -52,10 +89,13 @@ export class CareOptionDto {
   label: string;
 
   @ApiProperty({ example: 15.5, minimum: 0 })
+  @Transform(toNumber)
   @IsNumber(price)
   @Min(0)
   extraPrice: number;
 }
+
+// ── Variant ──
 
 export class VariantDto {
   @ApiProperty({ example: 'Black - Large' })
@@ -69,16 +109,19 @@ export class VariantDto {
   sku: string;
 
   @ApiProperty({ example: 199.99, minimum: 0 })
+  @Transform(toNumber)
   @IsNumber(price)
   @Min(0)
   price: number;
 
   @ApiProperty({ example: 50, minimum: 0 })
+  @Transform(toNumber)
   @IsInt()
   @Min(0)
   stock: number;
 
   @ApiPropertyOptional({ example: true, default: true })
+  @Transform(toBoolean)
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
@@ -94,7 +137,11 @@ export class VariantDto {
   careLabel?: string;
 }
 
+// ── Create Product ──
+
 export class CreateProductDto {
+  // ── Basic Information ──
+
   @ApiProperty({ example: 'AeroSound Studio Headphones', maxLength: 200 })
   @IsString()
   @IsNotEmpty()
@@ -102,6 +149,8 @@ export class CreateProductDto {
   title: string;
 
   @ApiProperty({ example: 'aerosound-studio-headphones' })
+  @IsString()
+  @IsNotEmpty()
   @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
     message: 'slug must be lowercase kebab-case',
   })
@@ -119,6 +168,7 @@ export class CreateProductDto {
   descriptionHtml?: string;
 
   @ApiPropertyOptional({ example: false })
+  @Transform(toBoolean)
   @IsOptional()
   @IsBoolean()
   has3dAsset?: boolean;
@@ -126,23 +176,27 @@ export class CreateProductDto {
   // ── Pricing ──
 
   @ApiProperty({ example: 199.99, minimum: 0 })
+  @Transform(toNumber)
   @IsNumber(price)
   @Min(0)
   basePrice: number;
 
   @ApiPropertyOptional({ example: 249.99, minimum: 0 })
+  @Transform(toNumber)
   @IsOptional()
   @IsNumber(price)
   @Min(0)
   comparePrice?: number;
 
   @ApiPropertyOptional({ example: 120.5, minimum: 0 })
+  @Transform(toNumber)
   @IsOptional()
   @IsNumber(price)
   @Min(0)
   costPrice?: number;
 
   @ApiPropertyOptional({ example: true })
+  @Transform(toBoolean)
   @IsOptional()
   @IsBoolean()
   chargeTax?: boolean;
@@ -165,35 +219,39 @@ export class CreateProductDto {
   barcode?: string;
 
   @ApiPropertyOptional({ example: 100, minimum: 0 })
+  @Transform(toNumber)
   @IsOptional()
   @IsInt()
   @Min(0)
   stockCount?: number;
 
   @ApiPropertyOptional({ example: 10, minimum: 0 })
+  @Transform(toNumber)
   @IsOptional()
   @IsInt()
   @Min(0)
   lowStockThreshold?: number;
 
-  @ApiPropertyOptional({
-    enum: OutOfStockPolicy,
-  })
+  @ApiPropertyOptional({ enum: OutOfStockPolicy })
   @IsOptional()
   @Transform(toUpper)
   @IsEnum(OutOfStockPolicy)
   outOfStockPolicy?: OutOfStockPolicy;
 
   @ApiPropertyOptional({ example: true })
+  @Transform(toBoolean)
   @IsOptional()
   @IsBoolean()
   hasVariants?: boolean;
+
+  // ── Color Options ──
 
   @ApiPropertyOptional({
     type: [ColorOptionDto],
     example: [{ label: 'Black', colorHex: '#000000' }],
     maxItems: 50,
   })
+  @Transform(parseJson)
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(50)
@@ -201,17 +259,22 @@ export class CreateProductDto {
   @Type(() => ColorOptionDto)
   colorOptions?: ColorOptionDto[];
 
+  // ── Care Options ──
+
   @ApiPropertyOptional({
     type: [CareOptionDto],
     example: [{ label: 'Premium Care', extraPrice: 15.5 }],
     maxItems: 50,
   })
+  @Transform(parseJson)
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(50)
   @ValidateNested({ each: true })
   @Type(() => CareOptionDto)
   careOptions?: CareOptionDto[];
+
+  // ── Variants ──
 
   @ApiPropertyOptional({
     type: [VariantDto],
@@ -228,6 +291,7 @@ export class CreateProductDto {
     ],
     maxItems: 200,
   })
+  @Transform(parseJson)
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(200)
@@ -238,6 +302,7 @@ export class CreateProductDto {
   // ── Shipping & Dimensions ──
 
   @ApiPropertyOptional({ example: 1.5, minimum: 0 })
+  @Transform(toNumber)
   @IsOptional()
   @IsNumber()
   @Min(0)
@@ -250,18 +315,21 @@ export class CreateProductDto {
   weightUnit?: WeightUnit;
 
   @ApiPropertyOptional({ example: 20, minimum: 0 })
+  @Transform(toNumber)
   @IsOptional()
   @IsNumber()
   @Min(0)
   length?: number;
 
   @ApiPropertyOptional({ example: 15, minimum: 0 })
+  @Transform(toNumber)
   @IsOptional()
   @IsNumber()
   @Min(0)
   width?: number;
 
   @ApiPropertyOptional({ example: 10, minimum: 0 })
+  @Transform(toNumber)
   @IsOptional()
   @IsNumber()
   @Min(0)
@@ -283,6 +351,8 @@ export class CreateProductDto {
   @IsString()
   shippingProfileId?: string;
 
+  // ── Product Settings ──
+
   @ApiPropertyOptional({ enum: ProductStatus, example: ProductStatus.DRAFT })
   @IsOptional()
   @Transform(toUpper)
@@ -296,11 +366,13 @@ export class CreateProductDto {
   cornerRibbon?: string;
 
   @ApiPropertyOptional({ example: true })
+  @Transform(toBoolean)
   @IsOptional()
   @IsBoolean()
   allowPhotoReviews?: boolean;
 
   @ApiPropertyOptional({ example: false })
+  @Transform(toBoolean)
   @IsOptional()
   @IsBoolean()
   featureInSpotlight?: boolean;
@@ -321,6 +393,7 @@ export class CreateProductDto {
     type: [String],
     example: ['collection-123', 'collection-456'],
   })
+  @Transform(parseJson)
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
@@ -330,6 +403,7 @@ export class CreateProductDto {
     type: [String],
     example: ['electronics', 'wireless'],
   })
+  @Transform(parseJson)
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
@@ -339,6 +413,7 @@ export class CreateProductDto {
     type: [String],
     example: ['High quality audio', 'Long battery life'],
   })
+  @Transform(parseJson)
   @IsOptional()
   @IsArray()
   @IsString({ each: true })

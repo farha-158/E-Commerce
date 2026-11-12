@@ -13,6 +13,7 @@ import {
   ApiQuery,
   ApiResponse,
   ApiTags,
+  ApiOkResponse,
 } from '@nestjs/swagger';
 import { CreateProductDto } from './dto/create.dto';
 import { ProductQueryDto } from './dto/product-query.dto';
@@ -30,12 +31,14 @@ import {
 } from '@nestjs/common';
 import { getSchemaPath } from '@nestjs/swagger';
 import { multerOptions } from '../../shared/config/multer.config';
+import { RolesGuard } from '../../shared/guards/role.guard';
+import { BulkUpdateProductStatusDto } from './dto/update-status.dto';
 
 @ApiTags('Admin - Products')
-@ApiBearerAuth()
+@ApiBearerAuth('access-token')
 @Controller('admin/products')
 @Roles(UserRole.ADMIN)
-@UseGuards(JwtAccessGuard)
+@UseGuards(JwtAccessGuard, RolesGuard)
 export class ProductsAdminController {
   constructor(private readonly productService: ProductsService) {}
 
@@ -73,7 +76,7 @@ export class ProductsAdminController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin only' })
   @ApiResponse({ status: 409, description: 'SKU or slug already exists' })
-  @UseInterceptors(FilesInterceptor('images', 12, multerOptions))
+  @UseInterceptors(FilesInterceptor('images', 12, multerOptions('products')))
   create(
     @UploadedFiles() files: Express.Multer.File[],
     @Body() dto: CreateProductDto,
@@ -161,5 +164,35 @@ export class ProductsAdminController {
   @ApiResponse({ status: 404, description: 'Product not found' })
   findOne(@Param('id') id: string) {
     return this.productService.findOne(id);
+  }
+
+  @Post('bulk-status')
+  @ApiOperation({
+    summary: 'Bulk Update Products Status',
+    description: 'Update status for multiple products in a single transaction.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        productIds: {
+          type: 'array',
+          items: { type: 'string' },
+          example: ['prod-1', 'prod-2', 'prod-3'],
+        },
+        status: {
+          type: 'string',
+          enum: ['published', 'unpublished', 'archived'],
+          example: 'published',
+        },
+      },
+      required: ['productIds', 'status'],
+    },
+  })
+  @ApiOkResponse({
+    description: 'Products status updated successfully.',
+  })
+  async bulkUpdateStatus(@Body() dto: BulkUpdateProductStatusDto) {
+    return this.productService.bulkUpdateStatus(dto.productIds, dto.status);
   }
 }
