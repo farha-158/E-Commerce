@@ -63,6 +63,7 @@ export class CollectionsController {
     description:
       'Creates a new curated collection with an optional cover image and initial products.',
   })
+  @ApiBody({ type: CreateCollectionDto })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     description: 'Collection information and images',

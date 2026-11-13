@@ -61,6 +61,7 @@ export class BrandsController {
     summary: 'Create brand',
     description: 'Creates a new brand with an optional logo upload.',
   })
+  @ApiBody({ type: CreateBrandDto })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     description: 'Brand information and images',

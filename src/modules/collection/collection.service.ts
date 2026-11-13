@@ -146,11 +146,10 @@ export class CollectionsService {
       throw new NotFoundException(`Collection with id '${id}' not found.`);
     }
 
-    const { _count, products, ...rest } = this.toResponse(collection);
+    const { products, ...rest } = this.toResponse(collection);
 
     return {
       ...rest,
-      productCount: _count.products,
       products: products.map(({ product }) => ({
         ...product,
         media: product.media.map((image) => ({
